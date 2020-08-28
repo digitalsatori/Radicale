@@ -43,6 +43,12 @@ def run():
         sys.exit(1)
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
+    if os.name == "nt":
+        signal.signal(signal.SIGBREAK, signal_handler)
+    elif os.name == "posix":
+        signal.signal(signal.SIGHUP, signal_handler)
+        signal.signal(signal.SIGUSR1, signal_handler)
+        signal.signal(signal.SIGUSR2, signal_handler)
 
     log.setup()
 
