@@ -115,7 +115,7 @@ class RwLock:
                 else:
                     self._writer = True
             try:
-                yield
+                yield lock_file
             finally:
                 with self._lock:
                     if mode == "r":

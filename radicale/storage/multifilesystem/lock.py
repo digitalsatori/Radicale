@@ -48,20 +48,26 @@ class StorageLockMixin:
 
     @contextlib.contextmanager
     def acquire_lock(self, mode, user=None):
-        with self._lock.acquire(mode):
+        with self._lock.acquire(mode) as lock_file:
             yield
             # execute hook
             hook = self.configuration.get("storage", "hook")
             if mode == "w" and hook:
                 folder = self.configuration.get("storage", "filesystem_folder")
-                logger.debug("Running hook")
                 debug = logger.isEnabledFor(logging.DEBUG)
-                p = subprocess.Popen(
-                    hook % {"user": shlex.quote(user or "Anonymous")},
+                popen_kwargs = dict(
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.PIPE if debug else subprocess.DEVNULL,
                     stderr=subprocess.PIPE if debug else subprocess.DEVNULL,
                     shell=True, universal_newlines=True, cwd=folder)
+                if os.name == "posix":
+                    # Pass the lock_file to the subprocess to ensure the lock
+                    # doesn't get released if this process is killed but the
+                    # child process lives on
+                    popen_kwargs["pass_fds"] = [lock_file.fileno()]
+                command = hook % {"user": shlex.quote(user or "Anonymous")}
+                logger.debug("Running hook")
+                p = subprocess.Popen(command, **popen_kwargs)
                 try:
                     stdout_data, stderr_data = p.communicate()
                 except BaseException:
