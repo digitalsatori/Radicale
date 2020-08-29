@@ -65,6 +65,13 @@ class StorageLockMixin:
                     # doesn't get released if this process is killed but the
                     # child process lives on
                     popen_kwargs["pass_fds"] = [lock_file.fileno()]
+                # Use new process group for child to prevent terminals
+                # from sending SIGINT etc. to it.
+                if os.name == "posix":
+                    popen_kwargs["preexec_fn"] = os.setpgrp
+                elif os.name == "nt":
+                    popen_kwargs["creationflags"] = (
+                        subprocess.CREATE_NEW_PROCESS_GROUP)
                 command = hook % {"user": shlex.quote(user or "Anonymous")}
                 logger.debug("Running hook")
                 p = subprocess.Popen(command, **popen_kwargs)
